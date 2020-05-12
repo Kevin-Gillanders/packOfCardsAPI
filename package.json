@@ -1,0 +1,21 @@
+{
+  "name": "packofcardsapi",
+  "version": "0.0.1",
+  "description": "An API for simulating a pack of cards",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "cards",
+    "deck",
+    "luck",
+    "api"
+  ],
+  "author": "Kevin Gillanders",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "serve-favicon": "^2.5.0"
+  }
+}
