@@ -1,0 +1,20 @@
+
+
+body
+    form(action='/api/deck/new', method='GET')
+        p
+            | Shuffled: 
+            input(type='checkbox', name='shuffled', value='true', checked)
+            br
+            | With replacement: 
+            input(type='checkbox', name='replacement', value='true')
+            br
+            | Suits: 
+            input(type='text', name='suits', value='4')
+            br
+            | Joker: 
+            input(type='checkbox', name='joker', value='true')
+            br
+            | Aces High: 
+            input(type='checkbox', name='aces', value='true', checked)
+        input(type='submit', value='Submit')
