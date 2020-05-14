@@ -1,15 +1,15 @@
-// require('dotenv').config();
+require('dotenv').config();
 // const http = require('http');
 const express = require('express');
 const app = express();
 const favicon = require('serve-favicon');
 // const bodyParser = require('body-parser');
 const path = require('path');
-
+const axios = require('axios');
+const urljoin = require('url-join');
 
 const hostname = '127.0.0.1';
 const port = process.env.PORT || 3000;
-
 const deckRoutes = require('./api/routes/deckRoute');
 
 // app.use(bodyParser.urlencoded({extended : false}));
@@ -32,8 +32,29 @@ Index
 */
 app.get('/', (req, res) => {
     res.render("demo/newDeckTest");
-    res.end();
-    // res.send("cards");
+    res.send("cards");
+});
+
+app.get('/getDemo', (req, res)=>{
+    var deckURL = urljoin(process.env.endpoint, "deck", "new");
+    var config = {
+        params: {
+            shuffled:"false",
+            aces: "true"
+        }
+    };
+    console.log(`deckURL ${deckURL}`);
+    axios.get(deckURL, config)
+    .then(response =>{
+        console.log(`json ${JSON.stringify(response.data)}`);
+        res.json(response.data);
+        res.end();
+    })
+    .catch(error =>{
+        console.log(error);
+        res.end();
+
+    });
 });
 
 

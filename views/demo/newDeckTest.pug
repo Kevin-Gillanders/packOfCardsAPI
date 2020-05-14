@@ -10,7 +10,10 @@ body
             input(type='checkbox', name='replacement', value='true')
             br
             | Suits: 
-            input(type='text', name='suits', value='4')
+            select(name='suits' value='4')
+                option=4
+                for amount in [1,2,3,5,6,7,8,9]
+                    option=amount
             br
             | Joker: 
             input(type='checkbox', name='joker', value='true')
