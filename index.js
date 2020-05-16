@@ -7,7 +7,7 @@ const favicon = require('serve-favicon');
 const path = require('path');
 const axios = require('axios');
 const urljoin = require('url-join');
-
+const mongoose = require('mongoose');
 const hostname = '127.0.0.1';
 const port = process.env.PORT || 3000;
 const deckRoutes = require('./api/routes/deckRoute');
@@ -22,6 +22,14 @@ app.use('/api/deck', deckRoutes);
 app.set('views', 'views');
 app.set('view engine', 'pug')
 
+
+app.get("/accessDB", (req, res) => {
+
+    const MongoClient = require('mongodb').MongoClient;
+    // const client = new MongoClient(uri, { useNewUrlParser: true });
+    mongoose.connect(process.env.connectionString, {useNewUrlParser: true, useUnifiedTopology: true});
+    res.end();
+});
 
 
 
@@ -83,7 +91,10 @@ app.get('/shuffle', (req, res)=>{
 });
 
 
-
+app.use((req, res)=>{
+    res.status(404);
+    res.render("error", {url: req.originalUrl + ' not found'});
+});
 
 
 app.listen(port, () => {
