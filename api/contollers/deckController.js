@@ -1,12 +1,16 @@
-
+var mongoose = require('mongoose');
+const Deck = require('../models/deckModel')
+const Card = require('../models/cardModel')
+var deckModel = mongoose.model('Deck');
+var cardModel = mongoose.model('Card');
 
 exports.createANewDeck = async (req, res) => 
 {
     try{
         console.log('here in deck controller')
         console.log(`Params given ${JSON.stringify(req.query)}`);
-        var response = 
-        {
+        var response = new Deck
+        ({
             shuffled: (req.query.shuffled !== undefined ? (req.query.shuffled === 'true'): false),
             replacement: (req.query.replacement !== undefined ?  (req.query.replacement === 'true') : false),
             // suit: (req.query.suits !== undefined ? (parseInt(req.query.suits) ? req.query.suits : 4)  : 4),
@@ -14,24 +18,49 @@ exports.createANewDeck = async (req, res) =>
             joker: (req.query.joker !== undefined ? (req.query.joker === 'true') : false),
             acesHigh: (req.query.aces !== undefined ? (req.query.aces  === 'true') : false),
             style: (req.query.style !== undefined ? req.query.style : "Standard")
-        };
+        });
         
-        var cards = await generateDeck(response);
-        response.cards =  cards;
-        
-        
-        //Write to database at this stage
-        response.deckID = 'temp';
-        if(response.shuffled)
+        // console.log(`Save me ${response}`);
+
+        var cards = await generateCards(response);
+        // response.cards =  cards;
+        for(var card of cards)
         {
-            console.log("shuffling, implement me");
+            card.save();
         }
+        response.cards = cards;
+        response.save({}, (err, data) =>{
+            if(err) 
+            {
+                console.log(err);
+                throw err;
+            }
+            else{
+                if(data.shuffled)
+                {
+                    console.log("shuffle data");
+                    console.log(data._id);
+                    cardModel.find({deckID : data._id/*, value: 5*/}).sort( 'position').exec((err, cardssreturned) =>
+                    {
+                        if(err) console.log(err);
+                        console.log(cardssreturned);
+                    });
+                }
+            }
+        });
+        // console.log(`ID : ${JSON.stringify(response._id)}`);
+        // console.log(`Response : ${JSON.stringify(response)}`);
+        
+        
+
 
         response.discard = [];
         response.remaining = cards.length;
-        console.log(`You have picked ${JSON.stringify(response)}`);
-        
+
+
         res.json(response);
+        
+        
     }
     catch(error)
     {
@@ -45,7 +74,7 @@ exports.createANewDeck = async (req, res) =>
     }
 }
 
-async function generateDeck(options)
+async function generateCards(options)
 {
     return new Promise((resolve, reject) =>{
         try
@@ -59,45 +88,54 @@ async function generateDeck(options)
                             {code:"H", suit:"Heart"}
                         ];
             //Change these to objects
-            var king  = 'K';
-            var queen = 'Q';
-            var jack  = 'J';
-            var ace   = 'A';
+            var king  = {code :'K', name : "King"};
+            var queen = {code :'Q', name : "Queen"};
+            var jack  = {code :'J', name : "Jack"};
+            var ace   = {code :'A', name : "Ace"};
 
             var aceValue   = (options.acesHigh ? 14 : 1);
             var kingValue  = 13;
             var queenValue = 12;
             var jackValue  = 11;
 
-            var highestValue = (options.acesHigh ? 14 : 13);
-            var lowestValue  = (options.acesHigh ? 2  : 1);
+            var offset =  (options.acesHigh ? 1 : 0)
+            var highestValue = 13 + offset;
+            var lowestValue  = 1  + offset;
 
             var cards = [];
 
-            for(let suit of suits)
+            for(let [idx, suit] of suits.entries())
             {
                 for(var val = lowestValue; val <= highestValue; val++ )
                 {
-                    var cardDetails = {
-                        value : val,
-                        suit  : suit.suit
-                    };
+                    // console.log(`(${idx} * (${highestValue} - ${offset})) + (${val} - ${offset}) = ${(idx * (highestValue - offset)) + (val - offset)}`);
+                    var cardDetails = new Card({
+                        suit     : suit.suit,
+                        value    : val,
+                        deckID     : options._id,
+                        position : (idx * (highestValue - offset)) + (val - offset)
+                    });
                     switch(val)
                     {
                         case aceValue:
-                            cardDetails.code = ace + suit.code;
+                            cardDetails.code = ace.code + suit.code;
+                            cardDetails.name = ace.name;
                             break;
                         case kingValue:
-                            cardDetails.code = king + suit.code;
+                            cardDetails.code = king.code + suit.code;
+                            cardDetails.name = king.name;
                             break;
                         case queenValue:
-                            cardDetails.code = queen + suit.code;
+                            cardDetails.code = queen.code + suit.code;
+                            cardDetails.name = queen.name;
                             break;
                         case jackValue:
-                            cardDetails.code = jack + suit.code;
+                            cardDetails.code = jack.code + suit.code;
+                            cardDetails.name = jack.name;
                             break;
                         default:
                             cardDetails.code = val.toString() + suit.code;
+                            cardDetails.name = val.toString();
                             break;
                     }
                     cards.push(cardDetails);
@@ -105,14 +143,17 @@ async function generateDeck(options)
             }
             if(options.joker){
                 var joker = {
-                    value : 0,
-                    suit  : "Joker",
-                    cardDetails: "Joker"
+                        suit  : "Joker",
+                        value : 0,
+                        deck  : res._id,
+                        position : 0,
+                        code: "Jo",
+                        name: "Joker"
                 };
                 cards.push(joker);
                 cards.push(joker);
             }
-            console.log(cards);
+            // console.log(cards);
             resolve(cards);
         }
         catch(err)
@@ -122,7 +163,17 @@ async function generateDeck(options)
     });
 }
 
-async function shuffleDeck(deckID)
+exports.shuffleDeck = async (req, res) =>
 {
-
+    // console.log("in shuffle");
+    // try{
+    //     cardModel.find({deckID : res.deckID}, (err, response)=>
+    //     {
+    //         if(err) console.log(err);
+    //         console.log(response);
+    //     });
+    // }
+    // catch(err){
+    //     console.log(err)
+    // }
 }

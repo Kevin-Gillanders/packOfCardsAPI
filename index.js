@@ -8,10 +8,10 @@ const path = require('path');
 const axios = require('axios');
 const urljoin = require('url-join');
 const mongoose = require('mongoose');
-const hostname = '127.0.0.1';
-const port = process.env.PORT || 3000;
 const deckRoutes = require('./api/routes/deckRoute');
 
+const hostname = '127.0.0.1';
+const port = process.env.PORT || 3000;
 // app.use(bodyParser.urlencoded({extended : false}));
 // app.use(express.json());
 
@@ -23,13 +23,17 @@ app.set('views', 'views');
 app.set('view engine', 'pug')
 
 
-app.get("/accessDB", (req, res) => {
 
-    const MongoClient = require('mongodb').MongoClient;
-    // const client = new MongoClient(uri, { useNewUrlParser: true });
-    mongoose.connect(process.env.connectionString, {useNewUrlParser: true, useUnifiedTopology: true});
-    res.end();
-});
+// console.log(process.env.connectionString);
+mongoose.connect(process.env.connectionString, {useNewUrlParser: true, useUnifiedTopology: true});
+
+
+// app.get("/accessDB", (req, res) => {
+
+//     // const MongoClient = require('mongodb').MongoClient;
+//     // const client = new MongoClient(uri, { useNewUrlParser: true });
+//     res.end();
+// });
 
 
 
