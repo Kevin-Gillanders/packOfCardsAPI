@@ -40,11 +40,7 @@ exports.createANewDeck = async (req, res) =>
                 {
                     console.log("shuffle data");
                     console.log(data._id);
-                    cardModel.find({deckID : data._id/*, value: 5*/}).sort( 'position').exec((err, cardssreturned) =>
-                    {
-                        if(err) console.log(err);
-                        console.log(cardssreturned);
-                    });
+                    console.log(shuffleDeck(data._id));
                 }
             }
         });
@@ -163,17 +159,32 @@ async function generateCards(options)
     });
 }
 
-exports.shuffleDeck = async (req, res) =>
+async function shuffleDeck(deckID)
 {
-    // console.log("in shuffle");
-    // try{
-    //     cardModel.find({deckID : res.deckID}, (err, response)=>
-    //     {
-    //         if(err) console.log(err);
-    //         console.log(response);
-    //     });
-    // }
-    // catch(err){
-    //     console.log(err)
-    // }
+    return new Promise((resolve, reject) =>{
+        try{
+            console.log("shuffle data");
+            console.log(deckID);
+            cardModel.find({deckID : deckID/*, value: 5*/}).sort( 'position').exec((err, cardssreturned) =>
+            {
+                if(err) 
+                {
+                    console.log(err);
+                    reject(err)
+                }
+                console.log(cardssreturned);
+                resolve(cardssreturned)
+            });
+        }
+        catch(err)
+        {
+            reject(err);
+        }
+    });
+}
+
+exports.shuffle = async (req, res) =>
+{
+    var deckID = req.deckID;
+    await shuffleDeck(deckID);
 }
