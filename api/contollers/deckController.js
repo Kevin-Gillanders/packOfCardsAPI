@@ -40,7 +40,7 @@ exports.createANewDeck = async (req, res) =>
                 {
                     console.log("shuffle data");
                     console.log(data._id);
-                    console.log(shuffleDeck(data._id));
+                    shuffleDeck(data._id);
                 }
             }
         });
@@ -48,12 +48,13 @@ exports.createANewDeck = async (req, res) =>
         // console.log(`Response : ${JSON.stringify(response)}`);
         
         
-
-
+        
+        
         response.discard = [];
         response.remaining = cards.length;
-
-
+        
+        
+        console.log(`Bye`);
         res.json(response);
         
         
@@ -165,7 +166,7 @@ async function shuffleDeck(deckID)
         try{
             console.log("shuffle data");
             console.log(deckID);
-            cardModel.find({deckID : deckID/*, value: 5*/}).sort( 'position').exec((err, cardssreturned) =>
+            cardModel.find({deckID : deckID, value: 5}).sort( 'position').exec((err, cardssreturned) =>
             {
                 if(err) 
                 {
@@ -173,7 +174,21 @@ async function shuffleDeck(deckID)
                     reject(err)
                 }
                 console.log(cardssreturned);
-                resolve(cardssreturned)
+                console.log(`before update`);
+                for(var card of cardssreturned)
+                {
+                    cardModel.updateOne({_id:card._id}, {position: 100}, (err, result) =>
+                    {
+                        if (err) {
+                            res.send(err);
+                        } else {
+                            console.log(result);
+                        }
+                    });
+                    console.log("during");
+                }
+                console.log("after");
+                resolve(cardssreturned);
             });
         }
         catch(err)
