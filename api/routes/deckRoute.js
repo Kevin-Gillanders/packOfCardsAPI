@@ -6,5 +6,8 @@ var express = require('express'),
 router.route('/new')
     .get(deck.createANewDeck);
 
+router.route('/shuffle')
+    .get(deck.shuffle);
+
 
 module.exports = router;

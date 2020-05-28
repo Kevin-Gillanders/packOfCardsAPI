@@ -164,30 +164,39 @@ async function shuffleDeck(deckID)
 {
     return new Promise((resolve, reject) =>{
         try{
-            console.log("shuffle data");
-            console.log(deckID);
-            cardModel.find({deckID : deckID, value: 5}).sort( 'position').exec((err, cardssreturned) =>
+            // console.log("shuffle data");
+            // console.log(deckID);
+            cardModel.find({deckID : deckID, drawn:false}).sort( 'position').exec((err, cardssreturned) =>
             {
                 if(err) 
                 {
                     console.log(err);
                     reject(err)
                 }
-                console.log(cardssreturned);
-                console.log(`before update`);
-                for(var card of cardssreturned)
+                // console.log(cardssreturned);
+                // console.log(`before update`);
+                // console.log(`This is the amount of cards ${cardssreturned.length}`);
+                let positions = cardssreturned.map(x => x.position);
+                // console.log(`Before The positions of the cards ${positions}`);
+                positions = shuffleList(positions);
+                // console.log(`After The positions of the cards ${positions}`);
+                for(var idx = 0; idx < cardssreturned.length; idx++)
                 {
-                    cardModel.updateOne({_id:card._id}, {position: 100}, (err, result) =>
+                    let card = cardssreturned[idx];
+                    let position = positions[idx];
+                    cardModel.updateOne({_id:card._id}, {position: position}, (err, result) =>
                     {
                         if (err) {
                             res.send(err);
                         } else {
-                            console.log(result);
+                            // console.log(result);
                         }
                     });
-                    console.log("during");
+                    // console.log("during");
                 }
-                console.log("after");
+                //TODO resolve a response success or the deck?
+                // console.log("after");
+                
                 resolve(cardssreturned);
             });
         }
@@ -198,8 +207,69 @@ async function shuffleDeck(deckID)
     });
 }
 
+async function setShuffled(deckID)
+{
+    return new Promise((resolve, reject) =>{
+        deckModel.updateOne({_id:deckID}, {shuffled:true}, (err, result) =>
+        {
+            if (err) {
+                console.log(err)
+                reject(err);
+            } else {
+                deckModel.findById(deckID, (err, result) =>{
+                    if(err) 
+                        reject(err);
+    
+                    resolve(result);
+                });
+            }
+        });
+    });
+
+}
+
+function shuffleList(positions)
+{
+    // Fisher–Yates shuffle outlined here 
+    // https://bost.ocks.org/mike/shuffle/
+    // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+    let currentIndex = positions.length, temporaryValue, randomIndex;
+
+    while(currentIndex !== 0)
+    {
+        //Pick random element remaining
+        randomIndex = Math.floor(Math.random() * currentIndex--);
+
+        //Swap with current element
+        temporaryValue = positions[randomIndex];
+        positions[randomIndex] = positions[currentIndex];
+        positions[currentIndex] = temporaryValue;
+
+    }
+    return positions;
+}
+
 exports.shuffle = async (req, res) =>
 {
-    var deckID = req.deckID;
-    await shuffleDeck(deckID);
+    console.log("Shuffling...");
+    try 
+    {
+        // TODO If no id given create new deck
+
+        let deckID = req.query.deckID;
+        await shuffleDeck(deckID);
+        let deck = await setShuffled(deckID);
+        console.log("Deck here");
+        console.log({"Deck" : deck});
+        res.json({"Deck" : deck});
+    }
+    catch(err)
+    { 
+        throw err;
+    }
+    finally
+    {
+        res.end();
+    }
+
 }
