@@ -10,4 +10,7 @@ router.route('/shuffle')
     .get(deck.shuffle);
 
 
+router.route('/draw')
+    .get(deck.draw);
+
 module.exports = router;

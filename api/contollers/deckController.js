@@ -9,7 +9,7 @@ exports.createANewDeck = async (req, res) =>
     try{
         console.log('here in deck controller')
         console.log(`Params given ${JSON.stringify(req.query)}`);
-        var response = new Deck
+        var deck = new Deck
         ({
             shuffled: (req.query.shuffled !== undefined ? (req.query.shuffled === 'true'): false),
             replacement: (req.query.replacement !== undefined ?  (req.query.replacement === 'true') : false),
@@ -20,16 +20,17 @@ exports.createANewDeck = async (req, res) =>
             style: (req.query.style !== undefined ? req.query.style : "Standard")
         });
         
-        // console.log(`Save me ${response}`);
+        // console.log(`Save me ${deck}`);
 
-        var cards = await generateCards(response);
-        // response.cards =  cards;
+        var cards = await generateCards(deck);
+        // deck.cards =  cards;
         for(var card of cards)
         {
             card.save();
         }
-        response.cards = cards;
-        response.save({}, (err, data) =>{
+        deck.cards = cards;
+        deck.cardsRemaining = cards.length;
+        deck.save({}, (err, data) =>{
             if(err) 
             {
                 console.log(err);
@@ -44,18 +45,17 @@ exports.createANewDeck = async (req, res) =>
                 }
             }
         });
-        // console.log(`ID : ${JSON.stringify(response._id)}`);
-        // console.log(`Response : ${JSON.stringify(response)}`);
+        // console.log(`ID : ${JSON.stringify(deck._id)}`);
+        // console.log(`Response : ${JSON.stringify(deck)}`);
         
         
         
         
-        response.discard = [];
-        response.remaining = cards.length;
+        deck.discard = [];
         
         
         console.log(`Bye`);
-        res.json(response);
+        res.json(deck);
         
         
     }
@@ -79,10 +79,10 @@ async function generateCards(options)
             console.log("here in generation");
             // make this database calls or a central data store
             var suits = [
-                            {code:"S", suit:"Spade"},
-                            {code:"D", suit:"Diamond"}, 
+                            {code:"H", suit:"Heart"},
                             {code:"C", suit:"Club"}, 
-                            {code:"H", suit:"Heart"}
+                            {code:"D", suit:"Diamond"}, 
+                            {code:"S", suit:"Spade"}
                         ];
             //Change these to objects
             var king  = {code :'K', name : "King"};
@@ -249,13 +249,46 @@ function shuffleList(positions)
     return positions;
 }
 
+async function getCard(deckID)
+{
+    console.log("Now thats what I call drawing...");
+    return new Promise((resolve, reject) =>{
+        // cardModel.findOneAndUpdate(
+        //     {deckID : deckID, drawn:false},  //query
+        //     {$set: { drawn: true } },  //update
+        //     {sort: {position:1}, new:true, usefindandmodify: false}, //options
+            
+        //     (error, result) =>{
+        //         if(error)
+        //             reject(error);
+        //         else
+        //         {
+        //             console.log(result);
+        //             resolve(result);
+        //         }
+        //     });
+        cardModel.findOneAndUpdate(
+            {deckID : deckID, drawn:false},  //query
+            {$set: { drawn: true } },  //update
+            { select: "suit value name code position", sort: {position:1}, new:true, usefindandmodify: false}, //options
+                
+            (error, result) =>{
+                if(error)
+                    reject(error);
+                else
+                {
+                    console.log(result);
+                    resolve(result);
+                }
+            });
+    }); 
+}
+
 exports.shuffle = async (req, res) =>
 {
     console.log("Shuffling...");
     try 
     {
-        // TODO If no id given create new deck
-
         let deckID = req.query.deckID;
         await shuffleDeck(deckID);
         let deck = await setShuffled(deckID);
@@ -271,5 +304,31 @@ exports.shuffle = async (req, res) =>
     {
         res.end();
     }
-
 }
+
+exports.draw = async (req, res) =>
+{
+    console.log("Drawing...");
+    try 
+    {
+        let deckID = req.query.deckID;
+
+        let card = await getCard(deckID);
+        console.log(`Card here ${card}`);
+        //TODO add logic to get the deck and increment the drawn counts
+        // let deck = await getDeck(deckID);
+        console.log("Deck here");
+        console.log({"Card" : card});
+        res.json({"Card" : card});//, "Deck" : deck});
+    }
+    catch(err)
+    { 
+        throw err;
+    }
+    finally
+    {
+        res.end();
+    }
+}
+
+
