@@ -1,10 +1,19 @@
 import urllib.request
 from bs4 import BeautifulSoup
 import pprint as pp
+from pathlib import Path
 
+# https://www.tarotcardmeanings.net/images/tarotcards-large/
+# https://www.tarotcardmeanings.net/images/tarotcards120px/
+# https://www.tarotcardmeanings.net/images/tarotcards/
+# https://www.tarotcardmeanings.net/images/mini/
+# https://www.tarotcardmeanings.net/images/mini60px/
 
-rootURL = 'https://www.tarotcardmeanings.net/images/tarotcards120px/'
-fileLocation = r"C:\Users\kevin.gillanders\Desktop\projects\TarotCards\medium120px\\"
+folderName = "tarotcards120px"
+rootURL = 'https://www.tarotcardmeanings.net/images/{}/'.format(folderName)
+fileLocation = r".\{}\\".format(folderName)
+print(fileLocation)
+Path(fileLocation).mkdir(parents=True, exist_ok=True)
 
 with urllib.request.urlopen(rootURL) as res:
 	content =  BeautifulSoup(res, 'lxml')

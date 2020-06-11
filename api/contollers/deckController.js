@@ -76,6 +76,9 @@ async function generateCards(options)
     return new Promise((resolve, reject) =>{
         try
         {
+            //TODO break this method down into different methods
+            // Per suit - One for number cards and  and then seperate method for face cards
+            // Another for special cards jokers and tarot
             console.log("here in generation");
             // make this database calls or a central data store
             var suits = [
@@ -100,57 +103,51 @@ async function generateCards(options)
             var lowestValue  = 1  + offset;
 
             var cards = [];
-
+            let pos = 0;
             for(let [idx, suit] of suits.entries())
             {
                 for(var val = lowestValue; val <= highestValue; val++ )
                 {
                     // console.log(`(${idx} * (${highestValue} - ${offset})) + (${val} - ${offset}) = ${(idx * (highestValue - offset)) + (val - offset)}`);
-                    var cardDetails = new Card({
-                        suit     : suit.suit,
-                        value    : val,
-                        deckID     : options._id,
-                        position : (idx * (highestValue - offset)) + (val - offset)
-                    });
+                    let pos = (idx * (highestValue - offset)) + (val - offset);
+                    let cardDetails;
                     switch(val)
                     {
                         case aceValue:
-                            cardDetails.code = ace.code + suit.code;
-                            cardDetails.name = ace.name;
+                            cardDetails = { code : ace.code + suit.code,
+                                            name : ace.name};
                             break;
                         case kingValue:
-                            cardDetails.code = king.code + suit.code;
-                            cardDetails.name = king.name;
+                            cardDetails = { code : king.code + suit.code,
+                                            name : king.name};
                             break;
                         case queenValue:
-                            cardDetails.code = queen.code + suit.code;
-                            cardDetails.name = queen.name;
+                            cardDetails = { code : queen.code + suit.code,
+                                            name : queen.name};
                             break;
                         case jackValue:
-                            cardDetails.code = jack.code + suit.code;
-                            cardDetails.name = jack.name;
+                            cardDetails = { code : jack.code + suit.code,
+                                            name : jack.name};
                             break;
                         default:
-                            cardDetails.code = val.toString() + suit.code;
-                            cardDetails.name = val.toString();
+                            cardDetails = { code : val.toString() + suit.code,
+                                            name : val.toString()};
                             break;
                     }
+                    cardDetails =  generateCard(suit.suit, val, options._id, pos, cardDetails);
+                    pos++;
+                    console.log(`Card made here ${cardDetails}`);
                     cards.push(cardDetails);
                 }
             }
             if(options.joker){
-                var joker = {
-                        suit  : "Joker",
-                        value : 0,
-                        deck  : res._id,
-                        position : 0,
-                        code: "Jo",
-                        name: "Joker"
-                };
-                cards.push(joker);
-                cards.push(joker);
+                // var joker = generateCard("Joker", 0, res._id, 53, {code :"Jo", name : "Joker"})
+                cards.push(generateCard("Joker", 0, options._id, pos, {code :"Jo", name : "Joker"}));
+                pos++;
+                cards.push(generateCard("Joker", 0, options._id, pos, {code :"Jo", name : "Joker"}));
+                pos++;
             }
-            // console.log(cards);
+            console.log(cards);
             resolve(cards);
         }
         catch(err)
@@ -158,6 +155,32 @@ async function generateCards(options)
             reject(err);
         }
     });
+}
+
+ function generateCard(suit, val, deckID, pos, cardDetails)
+{
+    //TODO move this method to the card controller
+
+        try
+        {
+            var card = new Card({
+                suit      : suit,
+                value     : val,
+                deckID    : deckID,
+                position  : pos,
+                reversed  : Math.random() > .5,
+                code      : cardDetails.code,
+                name      : cardDetails.name
+            });
+            console.log(`This is what the card data is ${card}`);
+            return(card);
+        }
+        catch(err)
+        {
+            console.log(err);
+            throw(err)
+        }
+ 
 }
 
 async function shuffleDeck(deckID)
@@ -194,9 +217,7 @@ async function shuffleDeck(deckID)
                     });
                     // console.log("during");
                 }
-                //TODO resolve a response success or the deck?
-                // console.log("after");
-                
+                setShuffled(deckID);
                 resolve(cardssreturned);
             });
         }
@@ -216,12 +237,7 @@ async function setShuffled(deckID)
                 console.log(err)
                 reject(err);
             } else {
-                deckModel.findById(deckID, (err, result) =>{
-                    if(err) 
-                        reject(err);
-    
-                    resolve(result);
-                });
+                resolve(result);
             }
         });
     });
@@ -249,14 +265,15 @@ function shuffleList(positions)
     return positions;
 }
 
-async function getCard(deckID)
+async function getNextCard(deckID)
 {
+    //TODO move this logic to a card controller
     console.log("Now thats what I call drawing...");
     return new Promise((resolve, reject) =>{
         // cardModel.findOneAndUpdate(
         //     {deckID : deckID, drawn:false},  //query
         //     {$set: { drawn: true } },  //update
-        //     {sort: {position:1}, new:true, usefindandmodify: false}, //options
+        //     {sort: {position:1}, new: true, useFindAndModify: false}, //options
             
         //     (error, result) =>{
         //         if(error)
@@ -267,21 +284,64 @@ async function getCard(deckID)
         //             resolve(result);
         //         }
         //     });
+
         cardModel.findOneAndUpdate(
             {deckID : deckID, drawn:false},  //query
             {$set: { drawn: true } },  //update
-            { select: "suit value name code position", sort: {position:1}, new:true, usefindandmodify: false}, //options
+            { select: "suit value name code position", sort: {position:1}, new: true, useFindAndModify: false}, //options
                 
             (error, result) =>{
                 if(error)
                     reject(error);
                 else
                 {
+                    if(result)
+                    {
+                        deckModel.updateOne(
+                            {_id : deckID},
+                            {$inc : {cardsRemaining: -1, cardsDrawn: 1} },
+                            {new: true, useFindAndModify: false},
+                            (error, deck) => {
+                                if(error) 
+                                    reject(error);
+                                else 
+                                    console.log(`deck counts changed ${deck}`);
+                        });
+                    }
                     console.log(result);
                     resolve(result);
                 }
             });
     }); 
+}
+
+async function getDeck(deckID)
+{
+    return new Promise((resolve, reject) =>
+    {
+        deckModel.findById(
+            deckID,
+            (error, deck) => {
+                if(error) 
+                    reject(error);
+                else 
+                    resolve(deck);
+            });
+    });
+
+}
+
+
+
+async function drawFromDeck(deckID)
+{
+    let card = await getNextCard(deckID);
+    console.log(`Card here ${card}`);
+
+    let deck = await getDeck(deckID);
+    console.log("Deck here");
+    console.log({"Card" : card, "Deck" : deck});
+    return {"Card" : card, "Deck" : deck};
 }
 
 exports.shuffle = async (req, res) =>
@@ -291,7 +351,7 @@ exports.shuffle = async (req, res) =>
     {
         let deckID = req.query.deckID;
         await shuffleDeck(deckID);
-        let deck = await setShuffled(deckID);
+        let deck = await getDeck(deckID);
         console.log("Deck here");
         console.log({"Deck" : deck});
         res.json({"Deck" : deck});
@@ -312,14 +372,9 @@ exports.draw = async (req, res) =>
     try 
     {
         let deckID = req.query.deckID;
+        let draw = await drawFromDeck(deckID);
 
-        let card = await getCard(deckID);
-        console.log(`Card here ${card}`);
-        //TODO add logic to get the deck and increment the drawn counts
-        // let deck = await getDeck(deckID);
-        console.log("Deck here");
-        console.log({"Card" : card});
-        res.json({"Card" : card});//, "Deck" : deck});
+        res.json(draw);//, "Deck" : deck});
     }
     catch(err)
     { 

@@ -1,11 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
 import pprint as pp
+from pathlib import Path
 
 # https://www.random.org/playing-cards/54.png
 
 rootURL = 'https://www.random.org/playing-cards/'
-fileLocation = r"C:\Users\kevin.gillanders\Desktop\projects\Cards\PlayingCards\basic\\"
+fileLocation = r".\basic\\"
+
+
+Path(fileLocation).mkdir(parents=True, exist_ok=True)
 
 for x in range(1,55):
 	try:
