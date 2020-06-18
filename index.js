@@ -25,7 +25,7 @@ app.set('view engine', 'pug')
 
 
 // console.log(process.env.connectionString);
-mongoose.connect(process.env.connectionString, {useNewUrlParser: true, useUnifiedTopology: true});
+mongoose.connect(process.env.connectionString, {useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true});
 
 
 // app.get("/accessDB", (req, res) => {

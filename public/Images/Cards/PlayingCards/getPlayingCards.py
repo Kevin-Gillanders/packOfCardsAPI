@@ -15,7 +15,6 @@ for x in range(1,55):
 	try:
 		img = "{}.png".format(x)
 		fullfilename = "{}{}".format(fileLocation, img)
-		
 		url = "{}{}".format(rootURL, img)
 		print(url)
 		print(fullfilename)

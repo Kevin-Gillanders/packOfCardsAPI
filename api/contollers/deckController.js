@@ -1,8 +1,12 @@
 var mongoose = require('mongoose');
+
 const Deck = require('../models/deckModel')
 const Card = require('../models/cardModel')
+const DeckSpec = require('../models/deckSpecificationModel')
+
 var deckModel = mongoose.model('Deck');
 var cardModel = mongoose.model('Card');
+var deckSpecificationModel = mongoose.model('DeckSpecification')
 
 exports.createANewDeck = async (req, res) => 
 {
@@ -74,69 +78,73 @@ exports.createANewDeck = async (req, res) =>
 async function generateCards(options)
 {
     return new Promise((resolve, reject) =>{
+        
         try
         {
             //TODO break this method down into different methods
             // Per suit - One for number cards and  and then seperate method for face cards
             // Another for special cards jokers and tarot
             console.log("here in generation");
-            // make this database calls or a central data store
-            var suits = [
-                            {code:"H", suit:"Heart"},
-                            {code:"C", suit:"Club"}, 
-                            {code:"D", suit:"Diamond"}, 
-                            {code:"S", suit:"Spade"}
-                        ];
-            //Change these to objects
-            var king  = {code :'K', name : "King"};
-            var queen = {code :'Q', name : "Queen"};
-            var jack  = {code :'J', name : "Jack"};
-            var ace   = {code :'A', name : "Ace"};
+            
+            var deckStyle   = getDeckSpecification(options.style);
 
-            var aceValue   = (options.acesHigh ? 14 : 1);
-            var kingValue  = 13;
-            var queenValue = 12;
-            var jackValue  = 11;
+            // console.log(`Here is deckStyle ${deckStyle}`);
+            
+            var suits       = deckStyle.suits;
+            var faceCards   = deckStyle.faceCards;
+            var maxNumCards = deckStyle.maxNumber;
+            var minNumCards = deckStyle.minNumber;
+            var maxSuitSize = maxNumCards + faceCards.length;
+            var offset      = (options.acesHigh ? 0 : 1)  
+            //#region set face values put into own method
+            for(var idx = 0; idx < faceCards.length; idx++)
+            {
+                var faceValue = maxNumCards + (idx + 1); 
 
-            var offset =  (options.acesHigh ? 1 : 0)
-            var highestValue = 13 + offset;
-            var lowestValue  = 1  + offset;
+                if(faceCards[idx].name.toLowerCase() == "ace")
+                {
+                    faceCards[idx].value = (options.acesHigh ? faceValue : 1);
+                }
+                else
+                {
+                    console.log(`face value ${faceValue}`);
+                    faceCards[idx].value = faceValue;
+                }
+            }
+            //#endregion
 
+            console.log(`Min ${minNumCards}, max ${maxNumCards}`);
             var cards = [];
-            let pos = 0;
+            let pos
             for(let [idx, suit] of suits.entries())
             {
-                for(var val = lowestValue; val <= highestValue; val++ )
+                // console.log("Making pack...");
+                // console.log(`suit ${suit.name}`);
+                pos = (idx * maxSuitSize) + 1 + offset;
+                let cardDetails;
+                for(var val = minNumCards; val <= maxNumCards; val++ )
                 {
-                    // console.log(`(${idx} * (${highestValue} - ${offset})) + (${val} - ${offset}) = ${(idx * (highestValue - offset)) + (val - offset)}`);
-                    let pos = (idx * (highestValue - offset)) + (val - offset);
-                    let cardDetails;
-                    switch(val)
-                    {
-                        case aceValue:
-                            cardDetails = { code : ace.code + suit.code,
-                                            name : ace.name};
-                            break;
-                        case kingValue:
-                            cardDetails = { code : king.code + suit.code,
-                                            name : king.name};
-                            break;
-                        case queenValue:
-                            cardDetails = { code : queen.code + suit.code,
-                                            name : queen.name};
-                            break;
-                        case jackValue:
-                            cardDetails = { code : jack.code + suit.code,
-                                            name : jack.name};
-                            break;
-                        default:
-                            cardDetails = { code : val.toString() + suit.code,
-                                            name : val.toString()};
-                            break;
-                    }
-                    cardDetails =  generateCard(suit.suit, val, options._id, pos, cardDetails);
+                   
+                    cardDetails = { code : val.toString() + suit.code,
+                                    name : val.toString()};
+                    // console.log(`here are carddeets ${cardDetails}`);
+                    cardDetails =  generateCard(suit.name, val, options._id, pos, cardDetails);
                     pos++;
                     console.log(`Card made here ${cardDetails}`);
+                    cards.push(cardDetails);
+                }
+                for(var faceCard of  faceCards)
+                {
+                    var facePos = pos;
+                    cardDetails = { code : faceCard.code + suit.code,
+                                    name : faceCard.name};
+                    
+                    if(cardDetails.name.toLowerCase() == "ace" && !options.acesHigh )
+                        facePos = (idx * maxSuitSize) + 1;
+
+                    cardDetails =  generateCard(suit.name, faceCard.value, options._id, facePos, cardDetails);
+                    pos++;
+                    console.log(`Face card made here ${cardDetails}`);
                     cards.push(cardDetails);
                 }
             }
@@ -157,29 +165,58 @@ async function generateCards(options)
     });
 }
 
+function getDeckSpecification(style)
+{
+    var testSpec = new DeckSpec
+    ({
+        style : style,
+        suits : 
+        [   
+            {code:"H", name:"Heart"},
+            {code:"C", name:"Club"}, 
+            {code:"D", name:"Diamond"}, 
+            {code:"S", name:"Spade"}
+        ],
+        maxNumber : 7,
+        minNumber : 2,
+        faceCards : 
+        [
+            {code :'J', name : "Jack"},
+            {code :'Q', name : "Queen"},
+            {code :'K', name : "King"},
+            {code :'A', name : "Ace"}
+        ], 
+        specialCards:
+        [
+            {code :'Jo', name : "Joker", Amount: 2}
+        ]
+    });
+    return testSpec;
+}
+
  function generateCard(suit, val, deckID, pos, cardDetails)
 {
     //TODO move this method to the card controller
 
-        try
-        {
-            var card = new Card({
-                suit      : suit,
-                value     : val,
-                deckID    : deckID,
-                position  : pos,
-                reversed  : Math.random() > .5,
-                code      : cardDetails.code,
-                name      : cardDetails.name
-            });
-            console.log(`This is what the card data is ${card}`);
-            return(card);
-        }
-        catch(err)
-        {
-            console.log(err);
-            throw(err)
-        }
+    try
+    {
+        var card = new Card({
+            suit      : suit,
+            value     : val,
+            deckID    : deckID,
+            position  : pos,
+            reversed  : Math.random() > .5,
+            code      : cardDetails.code,
+            name      : cardDetails.name
+        });
+        console.log(`This is what the card data is ${card}`);
+        return(card);
+    }
+    catch(err)
+    {
+        console.log(err);
+        throw(err)
+    }
  
 }
 
