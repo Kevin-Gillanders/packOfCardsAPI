@@ -34,7 +34,8 @@ exports.createANewDeck = async (req, res) =>
         }
         deck.cards = cards;
         deck.cardsRemaining = cards.length;
-        deck.save({}, (err, data) =>{
+        deck.save({}, (err, data) =>
+        {
             if(err) 
             {
                 console.log(err);
@@ -88,30 +89,17 @@ async function generateCards(options)
             
             var deckStyle   = getDeckSpecification(options.style);
 
-            // console.log(`Here is deckStyle ${deckStyle}`);
+            console.log(`Here is deckStyle ${deckStyle}`);
             
-            var suits       = deckStyle.suits;
-            var faceCards   = deckStyle.faceCards;
             var maxNumCards = deckStyle.maxNumber;
             var minNumCards = deckStyle.minNumber;
+            var acesHigh    = options.acesHigh;
+            var faceCards   = setFaceCardValues(deckStyle.faceCards, maxNumCards, minNumCards, acesHigh);
+            var numCards    = setNumCardValues(minNumCards, maxNumCards);
+            var suits       = deckStyle.suits;
             var maxSuitSize = maxNumCards + faceCards.length;
-            var offset      = (options.acesHigh ? 0 : 1)  
-            //#region set face values put into own method
-            for(var idx = 0; idx < faceCards.length; idx++)
-            {
-                var faceValue = maxNumCards + (idx + 1); 
+            var offset      = (acesHigh ? 0 : 1)  
 
-                if(faceCards[idx].name.toLowerCase() == "ace")
-                {
-                    faceCards[idx].value = (options.acesHigh ? faceValue : 1);
-                }
-                else
-                {
-                    console.log(`face value ${faceValue}`);
-                    faceCards[idx].value = faceValue;
-                }
-            }
-            //#endregion
 
             console.log(`Min ${minNumCards}, max ${maxNumCards}`);
             var cards = [];
@@ -121,38 +109,36 @@ async function generateCards(options)
                 // console.log("Making pack...");
                 // console.log(`suit ${suit.name}`);
                 pos = (idx * maxSuitSize) + 1 + offset;
-                let cardDetails;
-                for(var val = minNumCards; val <= maxNumCards; val++ )
+                var cardDetails;
+                for(var numCard of numCards)
                 {
-                   
-                    cardDetails = { code : val.toString() + suit.code,
-                                    name : val.toString()};
+                    let name = numCard.name;
                     // console.log(`here are carddeets ${cardDetails}`);
-                    cardDetails =  generateCard(suit.name, val, options._id, pos, cardDetails);
+                    cardDetails =  generateCard(suit.name, numCard.value, options._id, pos, numCard.code , suit.code, name);
                     pos++;
                     console.log(`Card made here ${cardDetails}`);
                     cards.push(cardDetails);
                 }
                 for(var faceCard of  faceCards)
                 {
-                    var facePos = pos;
-                    cardDetails = { code : faceCard.code + suit.code,
-                                    name : faceCard.name};
+                    let facePos = pos;
+                    let name = faceCard.name;
                     
-                    if(cardDetails.name.toLowerCase() == "ace" && !options.acesHigh )
+                    if(name.toLowerCase() == "ace" && !acesHigh )
                         facePos = (idx * maxSuitSize) + 1;
 
-                    cardDetails =  generateCard(suit.name, faceCard.value, options._id, facePos, cardDetails);
+                    cardDetails =  generateCard(suit.name, faceCard.value, options._id, facePos, faceCard.code , suit.code, name);
                     pos++;
                     console.log(`Face card made here ${cardDetails}`);
                     cards.push(cardDetails);
                 }
             }
-            if(options.joker){
+            if(options.joker)
+            {
                 // var joker = generateCard("Joker", 0, res._id, 53, {code :"Jo", name : "Joker"})
-                cards.push(generateCard("Joker", 0, options._id, pos, {code :"Jo", name : "Joker"}));
+                cards.push(generateCard("Black", 0, options._id, pos, "Jo", "Joker", "Joker"));
                 pos++;
-                cards.push(generateCard("Joker", 0, options._id, pos, {code :"Jo", name : "Joker"}));
+                cards.push(generateCard("Red", 0, options._id, pos, "Jo", "Joker", "Joker"));
                 pos++;
             }
             console.log(cards);
@@ -165,6 +151,37 @@ async function generateCards(options)
     });
 }
 
+function setNumCardValues(minNumCards, maxNumCards)
+{
+    let numberCards = [];
+    for(var idx = minNumCards; idx <= maxNumCards; idx++)
+    {
+        numberCards.push({code : idx, name : idx.toString(), value : idx});
+    }
+    return numberCards;
+}
+
+
+function setFaceCardValues(faceCards, maxNumCards, minNumCards, acesHigh)
+{
+    //#region set face card values put into own method
+    for(var idx = 0; idx < faceCards.length; idx++)
+    {
+        var faceValue = maxNumCards + (idx + 1); 
+
+        if(faceCards[idx].name.toLowerCase() == "ace")
+        {
+            faceCards[idx].value = (acesHigh ? faceValue : minNumCards - 1);
+        }
+        else
+        {
+            console.log(`face value ${faceValue}`);
+            faceCards[idx].value = faceValue;
+        }
+    }
+    return faceCards;
+    //#endregion
+}
 function getDeckSpecification(style)
 {
     var testSpec = new DeckSpec
@@ -194,20 +211,21 @@ function getDeckSpecification(style)
     return testSpec;
 }
 
- function generateCard(suit, val, deckID, pos, cardDetails)
+ function generateCard(suit, val, deckID, pos, cardCode, suitCode, name)
 {
     //TODO move this method to the card controller
 
     try
     {
-        var card = new Card({
+        let code = cardCode + suitCode;
+        let card = new Card({
             suit      : suit,
             value     : val,
             deckID    : deckID,
             position  : pos,
             reversed  : Math.random() > .5,
-            code      : cardDetails.code,
-            name      : cardDetails.name
+            code      : code,
+            name      : name
         });
         console.log(`This is what the card data is ${card}`);
         return(card);
@@ -307,25 +325,10 @@ async function getNextCard(deckID)
     //TODO move this logic to a card controller
     console.log("Now thats what I call drawing...");
     return new Promise((resolve, reject) =>{
-        // cardModel.findOneAndUpdate(
-        //     {deckID : deckID, drawn:false},  //query
-        //     {$set: { drawn: true } },  //update
-        //     {sort: {position:1}, new: true, useFindAndModify: false}, //options
-            
-        //     (error, result) =>{
-        //         if(error)
-        //             reject(error);
-        //         else
-        //         {
-        //             console.log(result);
-        //             resolve(result);
-        //         }
-        //     });
-
         cardModel.findOneAndUpdate(
             {deckID : deckID, drawn:false},  //query
             {$set: { drawn: true } },  //update
-            { select: "suit value name code position", sort: {position:1}, new: true, useFindAndModify: false}, //options
+            { select: "_id suit value name code position", sort: {position:1}, new: true, useFindAndModify: false}, //options
                 
             (error, result) =>{
                 if(error)
@@ -334,7 +337,8 @@ async function getNextCard(deckID)
                 {
                     if(result)
                     {
-                        deckModel.updateOne(
+                            //TODO this should check if there are cards left
+                            deckModel.updateOne(
                             {_id : deckID},
                             {$inc : {cardsRemaining: -1, cardsDrawn: 1} },
                             {new: true, useFindAndModify: false},
