@@ -19,7 +19,7 @@ exports.createANewDeck = async (req, res) =>
             replacement: (req.query.replacement !== undefined ?  (req.query.replacement === 'true') : false),
             // suit: (req.query.suits !== undefined ? (parseInt(req.query.suits) ? req.query.suits : 4)  : 4),
             suit: (parseInt(req.query.suits) ? req.query.suits : 4) ,
-            joker: (req.query.joker !== undefined ? (req.query.joker === 'true') : false),
+            special: ((req.query.joker !== undefined || req.query.special !== undefined) ? (req.query.joker === 'true' || req.query.special == 'true') : false),
             acesHigh: (req.query.aces !== undefined ? (req.query.aces  === 'true') : false),
             style: (req.query.style !== undefined ? req.query.style : "Standard")
         });
@@ -87,53 +87,43 @@ async function generateCards(options)
             // Another for special cards jokers and tarot
             console.log("here in generation");
             
-            var deckStyle   = getDeckSpecification(options.style);
+            let deckStyle   = getDeckSpecification(options.style);
 
-            console.log(`Here is deckStyle ${deckStyle}`);
+            // console.log(`Here is deckStyle ${deckStyle}`);
             
-            var maxNumCards = deckStyle.maxNumber;
-            var minNumCards = deckStyle.minNumber;
-            var acesHigh    = options.acesHigh;
-            var faceCards   = setFaceCardValues(deckStyle.faceCards, maxNumCards, minNumCards, acesHigh);
-            var numCards    = setNumCardValues(minNumCards, maxNumCards);
-            var suits       = deckStyle.suits;
-            var maxSuitSize = maxNumCards + faceCards.length;
-            var offset      = (acesHigh ? 0 : 1)  
+            let maxNumCards = deckStyle.maxNumber;
+            let minNumCards = deckStyle.minNumber;
+            let acesHigh    = options.acesHigh;
+            let deckID      = options._id;
+            let faceCards   = setFaceCardValues(deckStyle.faceCards, maxNumCards, minNumCards, acesHigh);
+            let numCards    = setNumCardValues(minNumCards, maxNumCards);
+            let specialCards= setSpecialCardValues()
+            let suits       = deckStyle.suits;
+            let maxSuitSize = maxNumCards + faceCards.length;
+            let offset      = (acesHigh ? 0 : 1)  
 
 
             console.log(`Min ${minNumCards}, max ${maxNumCards}`);
-            var cards = [];
-            let pos
-            for(let [idx, suit] of suits.entries())
-            {
-                // console.log("Making pack...");
-                // console.log(`suit ${suit.name}`);
-                pos = (idx * maxSuitSize) + 1 + offset;
-                var cardDetails;
-                for(var numCard of numCards)
-                {
-                    let name = numCard.name;
-                    // console.log(`here are carddeets ${cardDetails}`);
-                    cardDetails =  generateCard(suit.name, numCard.value, options._id, pos, numCard.code , suit.code, name);
-                    pos++;
-                    console.log(`Card made here ${cardDetails}`);
-                    cards.push(cardDetails);
-                }
-                for(var faceCard of  faceCards)
-                {
-                    let facePos = pos;
-                    let name = faceCard.name;
-                    
-                    if(name.toLowerCase() == "ace" && !acesHigh )
-                        facePos = (idx * maxSuitSize) + 1;
+            let cards = [];
+            // let pos = (idx * maxSuitSize) + 1 + offset
+            let pos =  1 + offset
+            // for(let [idx, suit] of suits.entries())
+            // {
+            //     let suitNumCards  = [];
+            //     let suitFaceCards = [];
+            
+            //     suitNumCards = generateSuitCards(numCards, pos, suit, deckID, acesHigh, idx, maxSuitSize);
+            //     pos = (suitNumCards ? pos + suitNumCards.length : pos);
+            //     // console.log(`suitNumCards ${suitNumCards}`);
+                
+            //     suitFaceCards = generateSuitCards(faceCards, pos, suit, deckID, acesHigh, idx, maxSuitSize);
+            //     pos = (suitNumCards ? pos + suitFaceCards.length : pos);
+            //     // console.log(`suitFaceCards ${suitFaceCards}`);
 
-                    cardDetails =  generateCard(suit.name, faceCard.value, options._id, facePos, faceCard.code , suit.code, name);
-                    pos++;
-                    console.log(`Face card made here ${cardDetails}`);
-                    cards.push(cardDetails);
-                }
-            }
-            if(options.joker)
+            //     cards = cards.concat(suitNumCards, suitFaceCards);
+            //     console.log(`concat : ${cards}`);
+            // }
+            if(options.special)
             {
                 // var joker = generateCard("Joker", 0, res._id, 53, {code :"Jo", name : "Joker"})
                 cards.push(generateCard("Black", 0, options._id, pos, "Jo", "Joker", "Joker"));
@@ -141,7 +131,8 @@ async function generateCards(options)
                 cards.push(generateCard("Red", 0, options._id, pos, "Jo", "Joker", "Joker"));
                 pos++;
             }
-            console.log(cards);
+            console.log(`+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++`);
+            console.log(`resolveing ${cards}`);
             resolve(cards);
         }
         catch(err)
@@ -149,6 +140,26 @@ async function generateCards(options)
             reject(err);
         }
     });
+}
+
+function generateSuitCards(spec, pos, suit, deckID, acesHigh, idx, maxSuitSize)
+{
+    let cardDetails;
+    let cards = [];
+    for(let card of spec)
+    {
+        let facePos = pos;
+        let name = card.name;
+        
+        if(name.toLowerCase() == "ace" && !acesHigh )
+            facePos = (idx * maxSuitSize) + 1;
+
+        cardDetails =  generateCard(suit.name, card.value, deckID, facePos, card.code , suit.code, name);
+        pos++;
+        // console.log(`Card made here ${cardDetails}`);
+        cards.push(cardDetails);
+    }
+    return cards;
 }
 
 function setNumCardValues(minNumCards, maxNumCards)
@@ -175,7 +186,7 @@ function setFaceCardValues(faceCards, maxNumCards, minNumCards, acesHigh)
         }
         else
         {
-            console.log(`face value ${faceValue}`);
+            // console.log(`face value ${faceValue}`);
             faceCards[idx].value = faceValue;
         }
     }
@@ -194,8 +205,8 @@ function getDeckSpecification(style)
             {code:"D", name:"Diamond"}, 
             {code:"S", name:"Spade"}
         ],
-        maxNumber : 7,
         minNumber : 2,
+        maxNumber : 3,
         faceCards : 
         [
             {code :'J', name : "Jack"},
@@ -227,7 +238,7 @@ function getDeckSpecification(style)
             code      : code,
             name      : name
         });
-        console.log(`This is what the card data is ${card}`);
+        // console.log(`This is what the card data is ${card}`);
         return(card);
     }
     catch(err)
